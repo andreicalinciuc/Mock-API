@@ -1,0 +1,20 @@
+{
+  "id": 1,
+  "payload": {
+    "domains": [
+      "04ce0c2b-de87-40b3-9fbd-c542395ffad6"
+    ],
+    "technologies": [],
+    "communities": [
+      "007b4309-c1c8-4ac9-b180-d5d5ab188b11"
+    ],
+    "locations": [],
+    "teamSize": {},
+    "projectAge": {
+      "min": 2,
+      "max": 3
+    },
+    "path": "/delivery-projects",
+    "userId": "803c517b-61a5-483b-a8a3-1ee668d06297"
+  }
+}
