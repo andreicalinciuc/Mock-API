@@ -32,9 +32,11 @@ func NewUser(router service.Router, logger service.Logger) {
 	router.Delete("/{path:[^/].+}", handler.Delete)
 }
 
+const dataPath = "data/"
+
 func (h *data) Create(w http.ResponseWriter, r *http.Request) error {
 	params := mux.Vars(r)
-	path := "data/" + params["path"]
+	path := dataPath + params["path"]
 	payload, err := request.DataArrayFromPayload(r.Body)
 	if err != nil {
 		return response.NewError(w, http.StatusBadRequest, "Malformed request")
@@ -109,7 +111,7 @@ func (h *data) Create(w http.ResponseWriter, r *http.Request) error {
 
 func (h *data) GetFile(w http.ResponseWriter, r *http.Request) error {
 	params := mux.Vars(r)
-	path := "data/" + params["path"]
+	path := dataPath + params["path"]
 	var dataFile []model.Data
 
 	file, err := os.ReadFile(path)
@@ -127,10 +129,10 @@ func (h *data) GetFile(w http.ResponseWriter, r *http.Request) error {
 
 func (h *data) GetById(w http.ResponseWriter, r *http.Request) error {
 	params := mux.Vars(r)
-	path := "data/" + params["path"]
+	path := dataPath + params["path"]
 	id, err := strconv.ParseInt(params["id"], 10, 64)
 	if err != nil {
-		return response.NewError(w, http.StatusInternalServerError, err.Error())
+		return response.NewError(w, http.StatusBadRequest, err.Error())
 	}
 
 	var dataFile []model.Data
@@ -150,12 +152,12 @@ func (h *data) GetById(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 
-	return response.NewError(w, http.StatusBadRequest, "invalid id")
+	return response.NewError(w, http.StatusNotFound, "invalid id")
 }
 
 func (h *data) Update(w http.ResponseWriter, r *http.Request) error {
 	params := mux.Vars(r)
-	path := "data/" + params["path"]
+	path := dataPath + params["path"]
 	id, err := strconv.ParseInt(params["id"], 10, 64)
 	if err != nil {
 		return response.NewError(w, http.StatusInternalServerError, err.Error())
@@ -199,7 +201,7 @@ func (h *data) Update(w http.ResponseWriter, r *http.Request) error {
 
 func (h *data) Delete(w http.ResponseWriter, r *http.Request) error {
 	params := mux.Vars(r)
-	path := "data/" + params["path"]
+	path := dataPath + params["path"]
 	err := os.Remove(path)
 	if err != nil {
 		return response.NewError(w, http.StatusBadRequest, err.Error())
