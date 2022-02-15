@@ -11,18 +11,18 @@ type Data struct {
 }
 
 // ToModel Helper function to convert request.User to []model.User
-func (data *Data) ToModel() *model.Data {
-	return &model.Data{
+func (data *Data) ToModel() model.Data {
+	return model.Data{
 		Id:      data.Id,
 		Payload: data.Payload,
 	}
 }
 
-func DataFromPayload(reader io.ReadCloser) (*model.Data, error) {
+func DataFromPayload(reader io.ReadCloser) (model.Data, error) {
 	var u Data
 	err := Unmarshal(reader, &u)
 	if err != nil {
-		return nil, err
+		return model.Data{}, err
 	}
 	return u.ToModel(), nil
 }
@@ -34,10 +34,6 @@ func DataArrayFromPayload(reader io.ReadCloser) ([]model.Data, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	//for _, item := range data {
-	//	dataModel = append(dataModel, item.ToModel())
-	//}
 
 	return dataModel, nil
 }
