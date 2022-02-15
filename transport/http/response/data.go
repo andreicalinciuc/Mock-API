@@ -3,24 +3,26 @@ package response
 import "github.com/andreicalinciuc/mock-api/model"
 
 type Data struct {
-	ID   int64  `json:"id"`
-	Body string `json:"body"`
+	Id      int64                  `json:"id"`
+	Payload map[string]interface{} `json:"payload"`
 }
 
-// FromUser godoc
-func FromUser(user *model.Data) Data {
-
-	return Data{}
+// FromData godoc
+func FromData(data *model.Data) Data {
+	return Data{
+		Id:      data.Id,
+		Payload: data.Payload,
+	}
 }
 
-// FromUsersModel godoc
-func FromUsersModel(users []model.Data, count uint64, err error) ([]Data, uint64, error) {
+// FromDataModel godoc
+func FromDataModel(datas []model.Data, count uint64, err error) ([]Data, uint64, error) {
 	if err != nil {
 		return nil, count, err
 	}
-	result := make([]Data, len(users))
-	for i, user := range users {
-		result[i] = FromUser(&user)
+	result := make([]Data, len(datas))
+	for i, data := range datas {
+		result[i] = FromData(&data)
 	}
 	return result, count, err
 }
