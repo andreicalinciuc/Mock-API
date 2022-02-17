@@ -1,15 +1,12 @@
 package handler
 
 import (
-	"encoding/json"
-	"github.com/andreicalinciuc/mock-api/model"
+	"github.com/andreicalinciuc/mock-api/repository"
 	"github.com/andreicalinciuc/mock-api/service"
 	"github.com/andreicalinciuc/mock-api/transport/http/request"
 	"github.com/andreicalinciuc/mock-api/transport/http/response"
 	"github.com/gorilla/mux"
-	"io/ioutil"
 	"net/http"
-	"os"
 	"strconv"
 )
 
@@ -28,100 +25,36 @@ func NewUser(router service.Router, logger service.Logger) {
 	router.Get("/file/{path:[^/].+}", handler.GetFile)
 	router.Get("/id/{id}/{path:[^/].+}", handler.GetById)
 	router.Post("/{path:[^/].+}", handler.Create)
+	//trebuie sa ma gandesc la o varianta de a pune parametrul dupa si de a cauta dupa el
+	//
+	//ca o solutie am gasit sa modific regex sa se opreasca la o anumita valoare
+	//ex sa se opreasca la param si sa fac requestul: /data/test/param/{paramName}/{paramValue}
 	router.Put("/id/{id}/{path:[^/].+}", handler.Update)
-	router.Delete("/{path:[^/].+}", handler.Delete)
+	router.Delete("/id/{id}/{path:[^/].+}", handler.Delete)
 }
-
-const dataPath = "data/"
 
 func (h *data) Create(w http.ResponseWriter, r *http.Request) error {
 	params := mux.Vars(r)
-	path := dataPath + params["path"]
+	repo := repository.NewData(params["path"])
 	payload, err := request.DataArrayFromPayload(r.Body)
 	if err != nil {
 		return response.NewError(w, http.StatusBadRequest, "Malformed request")
 	}
 
-	switch r.Header.Get("Type") {
-	case "file":
-		{
-			if checkIfFileExists(path) == false {
-				file, err := os.Create(path)
-				defer file.Close()
-				if err != nil {
-					return response.NewError(w, http.StatusInternalServerError, err.Error())
-				}
-
-				payloadString, err := json.Marshal(payload)
-				if err != nil {
-					return response.NewError(w, http.StatusInternalServerError, err.Error())
-				}
-
-				_, err = file.Write(payloadString)
-				if err != nil {
-					return response.NewError(w, http.StatusInternalServerError, err.Error())
-				}
-
-			} else {
-				return response.NewError(w, http.StatusBadRequest, "this file exists")
-			}
-
-			break
-		}
-	case "payload":
-		{
-			file, err := os.ReadFile(path)
-			if err != nil {
-				return response.NewError(w, http.StatusInternalServerError, err.Error())
-			}
-
-			var dataFile []model.Data
-			err = json.Unmarshal(file, &dataFile)
-			if err != nil {
-				return response.NewError(w, http.StatusInternalServerError, err.Error())
-			}
-
-			for _, item := range dataFile {
-				for _, data := range payload {
-					if data.Id == item.Id {
-						return response.NewError(w, http.StatusBadRequest, "duplicate id "+strconv.Itoa(int(data.Id)))
-					}
-				}
-			}
-
-			dataFile = append(dataFile, payload...)
-			payloadString, err := json.Marshal(dataFile)
-			if err != nil {
-				return response.NewError(w, http.StatusInternalServerError, err.Error())
-			}
-
-			err = ioutil.WriteFile(path, payloadString, 0)
-			if err != nil {
-				return response.NewError(w, http.StatusInternalServerError, err.Error())
-			}
-		}
-
-	default:
-		{
-			return response.NewError(w, http.StatusBadRequest, "unknown type action")
-		}
+	err = repo.Create(nil, payload)
+	if err != nil {
+		return response.NewError(w, http.StatusBadRequest, err.Error())
 	}
-	return response.NewError(w, http.StatusOK, "Succes ")
+
+	return response.NewError(w, http.StatusCreated, "Succes ")
 }
 
 func (h *data) GetFile(w http.ResponseWriter, r *http.Request) error {
 	params := mux.Vars(r)
-	path := dataPath + params["path"]
-	var dataFile []model.Data
-
-	file, err := os.ReadFile(path)
+	repo := repository.NewData(params["path"])
+	dataFile, err := repo.FindAll(nil)
 	if err != nil {
-		return response.NewError(w, http.StatusInternalServerError, err.Error())
-	}
-
-	err = json.Unmarshal(file, &dataFile)
-	if err != nil {
-		return response.NewError(w, http.StatusInternalServerError, err.Error())
+		return response.NewError(w, http.StatusBadRequest, err.Error())
 	}
 
 	return response.New(w, http.StatusOK, dataFile)
@@ -129,35 +62,25 @@ func (h *data) GetFile(w http.ResponseWriter, r *http.Request) error {
 
 func (h *data) GetById(w http.ResponseWriter, r *http.Request) error {
 	params := mux.Vars(r)
-	path := dataPath + params["path"]
+	repo := repository.NewData(params["path"])
+
 	id, err := strconv.ParseInt(params["id"], 10, 64)
 	if err != nil {
 		return response.NewError(w, http.StatusBadRequest, err.Error())
 	}
 
-	var dataFile []model.Data
-	file, err := os.ReadFile(path)
+	dataFind, err := repo.GetById(nil, id)
 	if err != nil {
 		return response.NewError(w, http.StatusBadRequest, err.Error())
 	}
 
-	err = json.Unmarshal(file, &dataFile)
-	if err != nil {
-		return response.NewError(w, http.StatusInternalServerError, err.Error())
-	}
+	return response.New(w, http.StatusOK, dataFind)
 
-	for _, payload := range dataFile {
-		if payload.Id == id {
-			return response.New(w, http.StatusOK, payload)
-		}
-	}
-
-	return response.NewError(w, http.StatusNotFound, "invalid id")
 }
 
 func (h *data) Update(w http.ResponseWriter, r *http.Request) error {
 	params := mux.Vars(r)
-	path := dataPath + params["path"]
+	repo := repository.NewData(params["path"])
 	id, err := strconv.ParseInt(params["id"], 10, 64)
 	if err != nil {
 		return response.NewError(w, http.StatusInternalServerError, err.Error())
@@ -167,33 +90,10 @@ func (h *data) Update(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return response.NewError(w, http.StatusBadRequest, "Malformed request")
 	}
-
-	file, err := os.ReadFile(path)
+	payloadFetch.Id = id
+	err = repo.Update(nil, payloadFetch)
 	if err != nil {
-		return response.NewError(w, http.StatusInternalServerError, err.Error())
-	}
-
-	var dataFile []model.Data
-	err = json.Unmarshal(file, &dataFile)
-	if err != nil {
-		return response.NewError(w, http.StatusInternalServerError, err.Error())
-	}
-
-	for index, payload := range dataFile {
-		if payload.Id == id {
-			dataFile[index].Payload = payloadFetch.Payload
-			break
-		}
-	}
-
-	payloadString, err := json.Marshal(dataFile)
-	if err != nil {
-		return response.NewError(w, http.StatusInternalServerError, err.Error())
-	}
-
-	err = ioutil.WriteFile(path, payloadString, 0)
-	if err != nil {
-		return response.NewError(w, http.StatusInternalServerError, err.Error())
+		return response.NewError(w, http.StatusBadRequest, err.Error())
 	}
 
 	return response.New(w, http.StatusOK, "Succes update")
@@ -201,12 +101,16 @@ func (h *data) Update(w http.ResponseWriter, r *http.Request) error {
 
 func (h *data) Delete(w http.ResponseWriter, r *http.Request) error {
 	params := mux.Vars(r)
-	path := dataPath + params["path"]
-	err := os.Remove(path)
+	repo := repository.NewData(params["path"])
+	id, err := strconv.ParseInt(params["id"], 10, 64)
+	if err != nil {
+		return response.NewError(w, http.StatusInternalServerError, err.Error())
+	}
+
+	err = repo.Delete(nil, id)
 	if err != nil {
 		return response.NewError(w, http.StatusBadRequest, err.Error())
 	}
 
 	return response.New(w, http.StatusOK, "Succes delete")
-
 }
