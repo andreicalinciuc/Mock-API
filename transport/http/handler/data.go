@@ -30,7 +30,7 @@ func NewUser(router service.Router, logger service.Logger) {
 	//ca o solutie am gasit sa modific regex sa se opreasca la o anumita valoare
 	//ex sa se opreasca la param si sa fac requestul: /data/test/param/{paramName}/{paramValue}
 	router.Put("/id/{id}/{path:[^/].+}", handler.Update)
-	router.Delete("/{path:[^/].+}", handler.Delete)
+	router.Delete("/id/{id}/{path:[^/].+}", handler.Delete)
 }
 
 func (h *data) Create(w http.ResponseWriter, r *http.Request) error {
@@ -52,7 +52,7 @@ func (h *data) Create(w http.ResponseWriter, r *http.Request) error {
 func (h *data) GetFile(w http.ResponseWriter, r *http.Request) error {
 	params := mux.Vars(r)
 	repo := repository.NewData(params["path"])
-	dataFile, err := repo.GetFile(nil)
+	dataFile, err := repo.FindAll(nil)
 	if err != nil {
 		return response.NewError(w, http.StatusBadRequest, err.Error())
 	}
@@ -102,7 +102,12 @@ func (h *data) Update(w http.ResponseWriter, r *http.Request) error {
 func (h *data) Delete(w http.ResponseWriter, r *http.Request) error {
 	params := mux.Vars(r)
 	repo := repository.NewData(params["path"])
-	err := repo.Delete(nil)
+	id, err := strconv.ParseInt(params["id"], 10, 64)
+	if err != nil {
+		return response.NewError(w, http.StatusInternalServerError, err.Error())
+	}
+
+	err = repo.Delete(nil, id)
 	if err != nil {
 		return response.NewError(w, http.StatusBadRequest, err.Error())
 	}

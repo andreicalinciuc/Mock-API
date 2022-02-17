@@ -37,12 +37,7 @@ func (r *dataRepo) Create(_ context.Context, data []model.Data) error {
 			return err
 		}
 
-		payloadString, err := json.Marshal(data)
-		if err != nil {
-			return err
-		}
-
-		_, err = file.Write(payloadString)
+		err = writeDataIntoFile(data, r.modelPath)
 		if err != nil {
 			return err
 		}
@@ -69,12 +64,8 @@ func (r *dataRepo) Create(_ context.Context, data []model.Data) error {
 	}
 
 	dataFile = append(dataFile, data...)
-	payloadString, err := json.Marshal(dataFile)
-	if err != nil {
-		return err
-	}
 
-	err = ioutil.WriteFile(r.modelPath, payloadString, 0755)
+	err = writeDataIntoFile(dataFile, r.modelPath)
 	if err != nil {
 		return err
 	}
@@ -101,12 +92,7 @@ func (r *dataRepo) Update(_ context.Context, data model.Data) error {
 		}
 	}
 
-	payloadString, err := json.Marshal(dataFile)
-	if err != nil {
-		return err
-	}
-
-	err = ioutil.WriteFile(r.modelPath, payloadString, 0)
+	err = writeDataIntoFile(dataFile, r.modelPath)
 	if err != nil {
 		return err
 	}
@@ -114,8 +100,32 @@ func (r *dataRepo) Update(_ context.Context, data model.Data) error {
 	return nil
 }
 
-func (r *dataRepo) Delete(_ context.Context) error {
-	err := os.Remove(r.modelPath)
+func (r *dataRepo) Delete(_ context.Context, id int64) error {
+	file, err := os.ReadFile(r.modelPath)
+	if err != nil {
+		return err
+	}
+
+	var dataFile []model.Data
+	err = json.Unmarshal(file, &dataFile)
+	if err != nil {
+		return err
+	}
+
+	var findIndex = false
+	for index, payload := range dataFile {
+		if payload.Id == id {
+			findIndex = true
+			dataFile = removeDataFromSlice(dataFile, index)
+			break
+		}
+	}
+
+	if findIndex == false {
+		return errors.New("Invalid id")
+	}
+
+	err = writeDataIntoFile(dataFile, r.modelPath)
 	if err != nil {
 		return err
 	}
@@ -145,7 +155,7 @@ func (r *dataRepo) GetById(_ context.Context, id int64) (model.Data, error) {
 
 }
 
-func (r *dataRepo) GetFile(_ context.Context) ([]model.Data, error) {
+func (r *dataRepo) FindAll(_ context.Context) ([]model.Data, error) {
 	var dataFile []model.Data
 
 	file, err := os.ReadFile(r.modelPath)
@@ -159,4 +169,23 @@ func (r *dataRepo) GetFile(_ context.Context) ([]model.Data, error) {
 	}
 
 	return dataFile, nil
+}
+
+func removeDataFromSlice(arr []model.Data, index int) []model.Data {
+	arr[index] = arr[len(arr)-1]
+	return arr[:len(arr)-1]
+}
+
+func writeDataIntoFile(data []model.Data, path string) error {
+	payloadString, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	err = ioutil.WriteFile(path, payloadString, 0755)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
